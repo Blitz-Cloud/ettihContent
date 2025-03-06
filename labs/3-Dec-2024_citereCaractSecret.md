@@ -6,269 +6,43 @@ tags: []
 ---
 
 ```c
-/*
- *  Description	: implementation of delay(), getch(), getche(), kbhit(), kbhit_wait(),
- *  		  GOTOXY(), CLRSCR(), rotr(), ...
- *  		  All functions tested successfully only on real terminals(NOT console).
- *		  Only ASCII encoding support.
- *  Date	: 23/10/2023
- *  Author	: rlupu, dg @ UPB
- */
-#include <time.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
-#define CLRSCR()	system("clear");
-
-#define FG_BLACK	"\x1B[30m"
-#define FG_RED		"\x1B[31m"
-#define FG_GREEN	"\x1B[32m"
-#define FG_YELLOW	"\x1B[33m"
-#define FG_BLUE		"\x1B[34m"
-#define FG_MAGENTA	"\x1B[35m"
-#define FG_CYAN		"\x1B[36m"
-#define FG_WHITE	"\x1B[37m"
-
-#define BG_BLACK	"\x1B[40m"
-#define BG_RED		"\x1B[41m"
-#define BG_GREEN	"\x1B[42m"
-#define BG_YELLOW	"\x1B[43m"
-#define BG_BLUE		"\x1B[44m"
-#define BG_MAGENTA	"\x1B[45m"
-#define BG_CYAN		"\x1B[46m"
-#define BG_WHITE	"\x1B[47m"
-
-#define BGFG_RESET	"\x1B[0m"
-
-#define GOTOXY(X, Y)	printf("\x1B[%d;%df", (Y), (X))
-#define DELLINE(X, Y)	do{GOTOXY((X), (Y)); printf("\33[2K\r"); }while(0);
 
 
-void myfflush(void){
-	int stdin2 = dup(STDIN_FILENO);
 
-	tcdrain(stdin2);
-	tcflush(stdin2, TCIFLUSH);
-	close(stdin2);
+int main(void) {
+    printf("Hello, World!\n");
+    return 0;
 }
-
-int mygetchar(void){	//each char read terminated by <CR>, with echo; assumed read-by-line terminal mode
-	char ch;
-
-	myfflush();
-	//while((ch = (char)getchar()) == '\n');
-	ch = (char)getchar();
-	(void)getchar();
-
-	myfflush();
-
-	return ch;
-}
-
-
-int getch(void){
-	int ch;
-	struct termios oldattr, newattr;
-
-	tcgetattr(STDIN_FILENO, &oldattr);
-	memcpy(&newattr, &oldattr, sizeof(struct termios));
-	newattr.c_lflag &= ~(ICANON | ECHO);
-	tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
-
-	ch = getc(stdin);
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
-
-	return ch;
-}
-
-int getche(void){
-	int ch;
-	struct termios oldattr, newattr;
-
-	tcgetattr(STDIN_FILENO, &oldattr);
-	memcpy(&newattr, &oldattr, sizeof(struct termios));
-	newattr.c_lflag &= ~(ICANON);
-	tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
-
-	ch = getc(stdin);
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
-
-	return ch;
-}
-
-int getche2(void){	//each char read w/o <CR>, with echo
-	char ch;
-
-	system("/bin/stty raw");	//disable <CR>
-	//myfflush();
-
-	ch = getchar();
-	system("/bin/stty cooked");
-
-	return ch;
-}
-
-int delay(long msec)
-{
-	int res;
-	struct timespec ts;
-
-	if(msec < 1000){
-		res = usleep(msec * 1000);
-		return res;
-	}
-
-	ts.tv_sec  = msec / 1000;
-	ts.tv_nsec = (msec % 1000) / 1000000;
-
-	do
-	{
-		res = nanosleep(&ts, NULL);
-	} while(res && errno == EINTR);
-
-	return res;
-}
-
-int kbhit(void){	//non-blocking version
-	struct termios oldt, newt;
-	int ch;
-	int oldf;
-
-	tcgetattr(STDIN_FILENO, &oldt);
-	memcpy(&newt, &oldt, sizeof(struct termios));
-	newt.c_lflag &= ~(ICANON | ECHO);
-	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-	oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-	fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-
-	ch = getc(stdin);
-	delay(150);
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-	fcntl(STDIN_FILENO, F_SETFL, oldf);
-
-	if(ch != EOF){
-		ungetc(ch, stdin);
-		return 1;
-	}
-
-	return 0;
-}
-
-int kbhit_wait(void){			//blocking version, until any key is pressed
-	system("/bin/stty raw");	//disable <CR>
-
-	myfflush();
-	while(getch() == -1);
-
-	system("/bin/stty cooked");
-
-	return 1;
-}
-
-unsigned int rotr(unsigned int nr, unsigned int pos){
-	return (nr >> pos) | (nr << (sizeof(unsigned int)*8 - pos));
-}
-
-unsigned int rotl(unsigned int nr, unsigned int pos){
-	return (nr << pos) | (nr >> (sizeof(unsigned int)*8 - pos));
-}
-
-void printb(unsigned int nr){
-	unsigned int mask = 0x00000001, i;
-	char binary[128];
-
-	printf("Binary representation of integer %d is:\n", nr);
-	printf("MSb\t\t\t\t\t\t\t\tLSb\n  ");
-
-	for(i = 0; i < sizeof(unsigned int)*8; i++, mask = mask << 1){
-		binary[i] = (nr & mask) ? '1' : '0';
-	}
-
-	for(i = sizeof(unsigned int)*8; i > 0; i--){
-		printf("%c", binary[i-1]);
-		if( i && ((i-1) % (sizeof(unsigned int)*8) ) && !((i-1) % 8) )
-			printf(".");
-		else
-			printf(" ");
-	}
-
-	printf("\n");
-}
-
-int main(){
-	int sisteme[3]={0},nrDeSysAccesate=0,i,j;
-	char passwords[3][5]={"1234\0","1423\0","1919\0"};
-	char passwd[5];
-	printf("Pinul pentru primul sistem\n");
-	for(i=0; i<3 && strcmp(passwd,passwords[0]); i++) {
-		for(j=0; j<4; j++) {
-			passwd[j]=getch();
-		}
-		passwd[4]='\0';
-		if(i==2 && strcmp(passwd,passwords[0])) {
-			printf("Accesul la sistem este blocat\n");
-		}
-		else if(!strcmp(passwd,passwords[0])) {
-			sisteme[0]=1;;
-			nrDeSysAccesate++;
-		}else if(strcmp(passwd,passwords[0])) {
-			printf("Introdu din nou parola\n");
-		}
-	}
-	printf("Pinul al doilea sistem\n");
-	for(i=0; i<3 && strcmp(passwd,passwords[1]); i++) {
-		for(j=0; j<4; j++) {
-			passwd[j]=getche();
-		}
-		passwd[4]='\0';
-		printf("\n");
-		if(i==2 && strcmp(passwd,passwords[1])) {
-			printf("Accesul la sistem este blocat\n");
-		}
-		else if(!strcmp(passwd,passwords[1])) {
-			sisteme[1]=1;
-			nrDeSysAccesate++;
-		}else if(strcmp(passwd,passwords[1])) {
-			printf("Introdu din nou parola\n");
-		}
-	}
-	printf("Pinul celui de al treilea sistem\n");
-	for(i=0; i<3 && strcmp(passwd,passwords[2]); i++) {
-		for(j=0; j<4; j++) {
-			passwd[j]=getch();putchar('*');
-		}
-		printf("\n");
-		passwd[4]='\0';
-		if(i==2 && strcmp(passwd,passwords[2])) {
-			printf("Accesul la sistem este blocat\n");
-		}
-		else if(!strcmp(passwd,passwords[2])) {
-			sisteme[2]=1;
-			nrDeSysAccesate++;
-		}else if(strcmp(passwd,passwords[2])) {
-			printf("Introdu din nou parola\n");
-		}
-	}
-	printf("Ai access la %d sisteme.\n",nrDeSysAccesate);
-	for(i=0;i<3;i++) {
-		if(sisteme[i]==1) {
-			printf("%d ",i);
-		}
-		else {
-			printf(" ");
-		}
-	}
-}
-
-
-
 
 ```
+
+Acest cod C este un program foarte simplu care afișează textul "Hello, World!" în consolă. Iată o explicație detaliată:
+
+**1. Include-uri:**
+
+*   `#include <stdio.h>`: Include fișierul antet standard pentru intrare/ieșire, necesar pentru funcția `printf`.  `stdio.h` este prescurtarea de la "standard input/output header".
+
+**2. Funcția `main()`:**
+
+*   `int main(void)`: Definește funcția principală a programului, care nu primește argumente.  Toate programele C trebuie să aibă o funcție `main()`, care este punctul de intrare în program.
+    *   `int`: Specifică faptul că funcția `main()` returnează o valoare întreagă.
+    *   `void`: Specifică faptul că funcția `main()` nu primește niciun argument.
+*   `printf("Hello, World!\n");`: Această linie este cea care face treaba.
+    *   `printf()`: Este o funcție din biblioteca standard C care este folosită pentru a afișa text (și alte tipuri de date) în consolă.  `printf` este prescurtarea de la "print formatted".
+    *   `"Hello, World!\n"`: Acesta este un șir literal (un șir de caractere încadrat între ghilimele duble) care conține textul pe care dorim să-l afișăm.
+    *   `\n`: Acesta este un caracter special numit "newline".  Atunci când este inclus într-un șir, acesta determină ca cursorul să se mute la începutul liniei următoare după ce textul este afișat.  Fără `\n`, următorul text afișat ar apărea pe aceeași linie cu "Hello, World!".
+*   `return 0;`: Returnează 0 pentru a indica faptul că programul s-a executat cu succes.  Aceasta este o convenție standard în C.  Sistemul de operare folosește valoarea returnată de `main()` pentru a determina dacă programul s-a executat cu succes sau a întâmpinat o eroare.
+
+**Ce face programul:**
+
+Programul afișează pur și simplu textul "Hello, World!" în consolă și apoi trece la linia următoare.
+
+**Ieșirea programului:**
+
+```
+Hello, World!
+```
+
+Acesta este un program clasic folosit adesea ca prim exemplu în introducerile în programare, deoarece demonstrează structura de bază a unui program C și modul de afișare a textului.
+
