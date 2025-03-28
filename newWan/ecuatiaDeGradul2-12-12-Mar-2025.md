@@ -6,14 +6,7 @@ tags: []
 uniYearAndSemester: 12
 ---
 
-#### Atentie acest cod a fost scris pentru a functiona pe Linux, recomand sa se elimine ** system("clear") ** pentru a asigura functionarea programului.
-
-Ce face ** system("clear") **:
-1. Aceasta are acelasi rol ca functia * clrscr() * din biblioteca *conio*(care nu biblioteca suportata in varianta oficiala de cpp
-2. In terminalul din Linux comanda * clear * are rolul de a curata ecranul, aceasta fiind similara cu combinatia de taste * CTRL+L *.
-3. Din ceea ce stiu desi asta poate sa difere, in PowerShell cu ajutorul  comenzii *clear* poti obtine accelasi lucru, iar pentru Command Prompt exista commanda * cls *. Nu imi este foarte clar care este procesator de commenzi prestabilit in Windows. Documenzatia pentru instructiunea *system()* din cpp [aici](https://en.cppreference.com/w/cpp/utility/program/system)
-
-```cpp
+```c
 #include <iostream>
 #include <cmath>
 
